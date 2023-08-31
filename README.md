@@ -1,7 +1,7 @@
 # Group-18 (team name) repository README file
 group members:
 Francesco
-Andreii
+Andrii
 
 
 # Diagnostics project

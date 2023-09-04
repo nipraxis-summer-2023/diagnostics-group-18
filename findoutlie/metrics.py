@@ -27,7 +27,7 @@ def dvars(img):
     # remove the last volume
     img_start = np.delete(data, slice(data.shape[-1]-1,data.shape[-1]), axis=3) 
     # remove the first volume
-    img_end = np.delete(data, slice(0,1), axis=3) 
+    img_end = data[..., 1:]
 
     return np.sqrt(np.mean((img_start - img_end)**2, axis = (0,1,2)))
     raise NotImplementedError('Code up this function')

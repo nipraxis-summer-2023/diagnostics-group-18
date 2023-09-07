@@ -25,7 +25,7 @@ def dvars(img):
     data = img.get_fdata()
     # create two timeseries with n-1 volumes and find the difference between them
     # remove the last volume
-    img_start = np.delete(data, slice(data.shape[-1]-1,data.shape[-1]), axis=3) 
+    img_start = data[...,:-1]
     # remove the first volume
     img_end = data[..., 1:]
 

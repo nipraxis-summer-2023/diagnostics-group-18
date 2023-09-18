@@ -3,6 +3,8 @@
 ## Pre-processing
  - Motion correction 
  - Skull stripping (?)
+ - Spatial Normalization (TBC)
+ - Intensity Normalization (TBC)
 
 
  ## Outlier detection

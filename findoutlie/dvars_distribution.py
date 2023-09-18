@@ -9,15 +9,18 @@ https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#a
 """
 
 import numpy as np
+import scipy
+from scipy.special import ndtri
+
 
 def distribution_mean(data):
-    """ Calculate mean of standard distribution on 4D data
+    """ Calculate mean of null distribution on 4D data
     used to calculate p-value for DVARS metrics
 
-    Calculate the sum of variances for voxel intensities 
-    and divide by the sum of intensities
+    Calculate the mean variances of voxel intensities 
 
-    For more information see equation 12: 
+
+    For more information see equation 12 and 13: 
     https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
 
     Parameters
@@ -27,36 +30,66 @@ def distribution_mean(data):
     Returns
     -------
     mu_0 : float
-        decimal to describe to mean for the standard distribution of the timeseries
+        decimal to describe the mean for the null distribution of the timeseries
     """
     # calculate the variance of all voxel timeseries
-    voxel_variances = np.var(data, axis=3)
-    # sum of variances divided by sum of all intensities
-    return np.sum(voxel_variances)/np.sum(data)
+    voxel_variances = voxel_iqr_variance(data)
 
-def dvars_data(data):
-    """ Calculate dvars metric on 4D data
+    # sum of variances divided by voxels per volume (mean)
+    return np.mean(voxel_variances)
 
-    The dvars calculation between two volumes is defined as the square root of
-    (the mean of the (voxel differences squared)).
+def voxel_differences(data):
+    """ Calculate difference between voxel i at time t 
+    and the same voxel at time t + 1 
+    
+    V(t+1)-V(t)
 
     Parameters
     ----------
-    data: 4D timeseries
+    data: normalised 4D timeseries
 
     Returns
     -------
-    dvals : 1D array
-        One-dimensional array with n-1 elements, where n is the number of
-        volumes in data.
+    dvals : 4D array with one less volume than 'data'
     """
     # create two timeseries with n-1 volumes and find the difference between them
     # remove the last volume
     img_start = data[...,:-1]
     # remove the first volume
     img_end = data[..., 1:]
-    return np.sqrt(np.mean((img_start - img_end)**2, axis = (0,1,2)))
+    return img_start - img_end
 
-def distribution_variance(data):
+def voxel_iqr_variance(data):
+    """ Calculate variance of voxel timeseries using iqr
+    used to calculate mean of null distribution
 
-    dvars_data(data):
+    For more information see equation 13: 
+    https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
+
+    Parameters
+    ----------
+    data: 4D difference of adjacent voxel intensities
+
+    Returns
+    -------
+    variance: 3D array of variances for each voxel
+    """
+    # from the data calculate the differences between voxels at t and t+1
+    all_voxel_differences = voxel_differences(data)
+    
+    # initiate variable for loop
+    iqr_dvars_values = np.zeros(data.shape[:-1])
+
+    # initiate loop over x,y,z 
+    for x_value in range(data.shape[0]):
+        for y_value in range(data.shape[1]):
+            for z_value in range(data.shape[2]):
+                
+                # calculate iqr for each voxel timeseries
+                q1, q3 = np.percentile(all_voxel_differences[x_value,y_value,z_value,:], [25, 75])
+                iqr_dvars_values[x_value,y_value,z_value] = q3 - q1
+
+    # IQR os standard normal distribution
+    iqr_0 = ndtri(0.75) - ndtri(0.25)
+
+    return iqr_dvars_values/iqr_0

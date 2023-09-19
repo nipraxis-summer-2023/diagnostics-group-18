@@ -241,9 +241,10 @@ def dvars_z_scores(data):
 
     dvars_squared_values = dvars_squared(data)
     null_mean = null_distribution_mean(data)
-    null_variance = null_distribution_variance(data)
-    
-    return (dvars_squared_values-null_mean)/np.sqrt(null_variance)
+    null_variance_uncorrected = null_distribution_variance(data)
+    null_variance_corrected = null_variance_correction(null_mean,null_variance_uncorrected)
+
+    return (dvars_squared_values-null_mean)/np.sqrt(null_variance_corrected)
 
 def null_variance_correction(null_mean,null_variance, d=3):
     """ Correcting from possible positive skew of estimated null distribution using 

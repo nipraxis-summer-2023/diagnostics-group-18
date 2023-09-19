@@ -19,9 +19,12 @@ from findoutlie.dvars_distribution import distribution_mean, voxel_differences, 
 from scipy.special import ndtri
 from math import isclose
 
-def test_dvars_distribution():
+def test_distribution_mean():
+    
+    # create example matrices 
     example_values1 = np.ones((3,3,3,6))
     example_values2 = np.zeros((3,3,3,12))
+
     for time_values in range(example_values2.shape[-1]):
         example_values2[...,time_values] = time_values**2
     
@@ -31,6 +34,7 @@ def test_dvars_distribution():
 
     assert distribution_mean(example_values1) == 0
     assert isclose(distribution_mean(example_values2), answer2)
+
 
 def test_voxel_differences():
     example_values = np.ones((3,3,3,6))

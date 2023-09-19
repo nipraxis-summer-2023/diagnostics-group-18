@@ -15,11 +15,13 @@ or even better, from the terminal::
 """
 
 import numpy as np
-from findoutlie.dvars_distribution import distribution_mean, voxel_differences, voxel_iqr_variance
+from findoutlie.dvars_distribution import null_distribution_mean, voxel_differences, voxel_iqr_variance, dvars_squared
 from scipy.special import ndtri
 from math import isclose
+import nipraxis as npx
+import nibabel as nib
 
-def test_distribution_mean():
+def test_null_distribution_mean():
     
     # create example matrices 
     example_values1 = np.ones((3,3,3,6))
@@ -32,8 +34,8 @@ def test_distribution_mean():
     q1, q3 = np.percentile(example_answer2_array, [25, 75])
     answer2 = (q3 - q1)/(ndtri(0.75) - ndtri(0.25))
 
-    assert distribution_mean(example_values1) == 0
-    assert isclose(distribution_mean(example_values2), answer2)
+    assert null_distribution_mean(example_values1) == 0
+    assert isclose(null_distribution_mean(example_values2), answer2)
 
 
 def test_voxel_differences():
@@ -60,6 +62,24 @@ def test_voxel_iqr_variance():
     assert (example_answer == voxel_iqr_variance(example_values)).all
     
 
+TEST_FNAME = npx.fetch_file('ds114_sub009_t2r1.nii')
 
+def test_dvars_squared():
+    img = nib.load(TEST_FNAME)
+    n_trs = img.shape[-1]
+    n_voxels = np.prod(img.shape[:-1])
+    data = img.get_fdata()
+    dvals = dvars_squared(data)
+    assert len(dvals) == n_trs - 1
+    # Calculate the values the long way round
+    data = img.get_fdata()
+    prev_vol = data[..., 0]
+    long_dvals = []
+    for i in range(1, n_trs):
+        this_vol = data[..., i]
+        d = this_vol - prev_vol
+        long_dvals.append(np.sum(d ** 2) / n_voxels)
+        prev_vol = this_vol
+    assert np.allclose(dvals, long_dvals)
 
 

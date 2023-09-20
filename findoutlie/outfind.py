@@ -14,6 +14,7 @@ def detect_outliers(fname):
     mean_values = np.mean(data, axis=(0, 1, 2))
     outliers = np.where(iqr_detector(mean_values))[0]
     return outliers
+
     # img = nib.load(fname)
     # # img_data = img.get_fdata()
     # dvars_values = dvars(img)
@@ -21,7 +22,7 @@ def detect_outliers(fname):
     # # print(f"First 10 DVARS values: {dvars_values[:10]}")
     # some_threshold = 40
     # outliers = [i for i, val in enumerate(dvars_values) if val > some_threshold]
-    return outliers
+    # return outliers
 
 
 def find_outliers(data_directory):

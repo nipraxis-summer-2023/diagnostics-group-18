@@ -65,12 +65,12 @@ def validate_data(data_directory):
             lines = f.readlines()
     # raising error if the file was not found
     except FileNotFoundError:
-        print(f"Error: File 'hash_list.txt' not found in directory: {data_directory}/group-00")
-        return
+        raise FileNotFoundError(f"Error: File 'hash_list.txt' not found in directory: {data_directory}/group-00")
+
 
     #rading each line of the file
     for line in lines:
-        expected_hash, filename = line.strip().split()
+        expected_hash, filename = line.split()
         actual_hash = file_hash(os.path.join(data_directory, filename))
 
         if expected_hash != actual_hash:

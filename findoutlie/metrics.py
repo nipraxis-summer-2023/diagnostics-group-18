@@ -1,9 +1,10 @@
 """ Scan outlier metrics
 """
 
-# Any imports you need
-# +++your code here+++
+
 import numpy as np
+import nibabel as nib
+
 
 def dvars(img):
     """ Calculate dvars metric on Nibabel image `img`
@@ -22,12 +23,23 @@ def dvars(img):
         volumes in `img`.
     """
 
+    # validation if it is nifty image
+    if not isinstance(img, nib.Nifti1Image):
+        raise TypeError("Input must be a nibabel image object")
+
+    # loading data into a memory
     data = img.get_fdata()
-    # create two timeseries with n-1 volumes and find the difference between them
+
+    # validation if it 4D images
+    if len(data.shape) != 4:
+        raise ValueError("Input image must be 4D")
+
     # remove the last volume
     img_start = data[...,:-1]
+
     # remove the first volume
     img_end = data[..., 1:]
 
-    return np.sqrt(np.mean((img_start - img_end)**2, axis = (0,1,2)))
-    raise NotImplementedError('Code up this function')
+    return np.sqrt(np.mean((img_start - img_end) ** 2, axis = (0,1,2)))
+    # raise NotImplementedError('Code up this function')
+

@@ -20,7 +20,7 @@ or better, in IPython::
     %run findoutlie/tests/test_spm_funcs.py
 """
 
-# Any imports you need
+
 import numpy as np
 
 import nibabel as nib

@@ -4,15 +4,16 @@ These functions take a vector of values, and return a boolean vector of the
 same length as the input, where True indicates the corresponding value is an
 outlier.
 
-The outlier detection routines will likely be adapted to the specific measure
-that is being worked on.  So, some detector functions will work on values > 0,
+
+The outlier detection routines swill likely be adapted to the specific measure
+that is being worked on. So, some detector functions will work on values > 0,
+
 other on normally distributed values etc.  The routines should check that their
 requirements are met and raise an error otherwise.
 """
 
-# Any imports you need
+
 import numpy as np
-# +++your code here+++
 
 
 def iqr_detector(measures, iqr_proportion=1.5):
@@ -46,8 +47,14 @@ def iqr_detector(measures, iqr_proportion=1.5):
         A boolean vector of same length as `measures`, where True means the
         corresponding value in `measures` is an outlier.
     """
-    q1, q3 = np.percentile(measures, [25, 75])
+
+    q1 = np.percentile(measures, 25)
+    q3 = np.percentile(measures, 75)
     iqr = q3 - q1
-    up_thresh = q3 + iqr * iqr_proportion
-    down_thresh = q1 - iqr * iqr_proportion
-    return np.logical_or(measures > up_thresh, measures < down_thresh)
+
+    lower_bound = q1 - (iqr * iqr_proportion)
+    upper_bound = q3 + (iqr * iqr_proportion)
+    outlier_tf = np.logical_or(measures > upper_bound, measures < lower_bound)
+
+    return outlier_tf
+

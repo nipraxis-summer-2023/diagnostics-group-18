@@ -1,8 +1,10 @@
 """ Scan outlier metrics
 """
 
+
 import numpy as np
 import nibabel as nib
+
 
 def dvars(img):
     """ Calculate dvars metric on Nibabel image `img`
@@ -20,6 +22,7 @@ def dvars(img):
         One-dimensional array with n-1 elements, where n is the number of
         volumes in `img`.
     """
+
     # validation if it is nifty image
     if not isinstance(img, nib.Nifti1Image):
         raise TypeError("Input must be a nibabel image object")
@@ -39,3 +42,4 @@ def dvars(img):
 
     return np.sqrt(np.mean((img_start - img_end) ** 2, axis = (0,1,2)))
     # raise NotImplementedError('Code up this function')
+

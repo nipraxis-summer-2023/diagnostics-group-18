@@ -2,13 +2,14 @@
 
 Run as:
 
-    python3 scripts/validata_data.py data
+    python3 scripts/validate_data.py data
 """
 
 from pathlib import Path
 import sys
 import os
 import hashlib
+
 
 def file_hash(filename):
     """ Get byte contents of file `filename`, return SHA1 hash

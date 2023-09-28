@@ -21,6 +21,10 @@ from math import isclose
 import nipraxis as npx
 import nibabel as nib
 
+# create test volume timeseries filled with normally distributed random numbers
+TEST_NORMALISED_VOLUMES = np.random.normal(size = (10,10,10,1000))
+
+
 def test_null_distribution_mean():
     
     # create example matrices 
@@ -36,11 +40,13 @@ def test_null_distribution_mean():
 
     assert null_distribution_mean(example_values1) == 0
     assert isclose(null_distribution_mean(example_values2), answer2)
+    #assert isclose(null_distribution_mean(TEST_NORMALISED_VOLUMES), 0)
 
 
 def test_voxel_differences():
     example_values = np.ones((3,3,3,6))
     example_values1 = np.append(example_values,example_values+1, axis=3)
+    example_answer3 = TEST_NORMALISED_VOLUMES[...,1]-TEST_NORMALISED_VOLUMES[...,0]
 
     # check correct shape for answer
     assert voxel_differences(example_values).shape == (3,3,3,5)
@@ -49,6 +55,8 @@ def test_voxel_differences():
     example_answer1 = np.zeros(example_values.shape[:-1]+(example_values.shape[-1] - 1,))
     example_answer1 = np.append(example_answer1,example_values, axis=3)
     assert (voxel_differences(example_values1) == example_answer1).all
+    assert (voxel_differences(TEST_NORMALISED_VOLUMES)[...,0] == example_answer3).all
+
 
 def test_voxel_iqr_variance():
 

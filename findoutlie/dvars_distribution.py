@@ -9,9 +9,166 @@ https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#a
 """
 
 import numpy as np
-import scipy
 from scipy.special import ndtri
+import scipy.stats
 
+def dvars_pvals(raw_data, alpha=0.05):
+    """ Calculate Bonferroni corrected p_values using chi2 stats and finds 
+    rejected null hypothesys
+
+    Parameters
+    ----------
+    raw_data: 4D timeseries
+    alpha: significance threshold
+
+    Returns
+    -------
+    p_vals_adjusted: 1D array of adjusted p_values
+    reject_null: 1D array, true if null hypothesys is rejected 
+    """
+    # scale the data
+    data = volume_scaling(raw_data)
+    
+    # calculate chi2 stats
+    chisquared_stats, degrees_of_freedom = dvars_chisquared_stat(data)
+    
+    # find p-vals
+    p_vals = 1 - scipy.stats.chi2.cdf(chisquared_stats,degrees_of_freedom)
+    
+    # Bonferroni adjusted p_values
+    p_vals = p_vals*len(p_vals)
+    
+    # significance testing
+    reject_null = p_vals <= alpha
+    
+    return p_vals, reject_null
+
+def volume_scaling(raw_data): 
+    """ Rescales volume intensity values from raw
+    4D timeseries
+    
+    Maths:
+    
+    M_Ri = raw mean value for voxel i
+    Y_Rit = raw value for voxel i in volume t
+    m_R = mean (or median) raw value of {M_Ri}
+
+    Scaled value for voxel i at time t
+    Y_it = 100*(Y_Rit-M_Ri)/m_R 
+
+    see equation 1: 
+    https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
+
+    Parameters
+    ----------
+    raw_data: raw 4D timeseries 
+
+    Returns
+    -------
+    data : Scaled 4D timeseries
+    """
+
+    # overall mean value 
+    m_R = np.mean(raw_data)
+
+    scaled_data = np.zeros(raw_data.shape)
+    
+    # initiate loop over x,y,z 
+    for x_value in range(raw_data.shape[0]):
+        for y_value in range(raw_data.shape[1]):
+            for z_value in range(raw_data.shape[2]):
+                    
+                    # calculate mean for voxel timeseries
+                    M_Ri = np.mean(raw_data[x_value,y_value,z_value,:])
+                    
+                    # loop over volumes
+                    for t_value in range(raw_data.shape[3]):
+                        
+                        # get individual raw intensities
+                        Y_Rit = raw_data[x_value,y_value,z_value,t_value]
+                        # calculate scaled intensity
+                        Y_it = 100*(Y_Rit-M_Ri)/m_R 
+                        scaled_data[x_value,y_value,z_value,t_value] = Y_it
+    
+    return scaled_data
+
+def dvars_chisquared_stat(data):
+    """ Calculate chi squared stats for and degrees of freedom for 4D timeseries 
+
+    Maths:
+
+    X(dvars_t) = 2*mu_0(dvars^2_t)/(variance_0)
+
+    dof = 2*mu_0^2/(variance_0)
+
+    For more information see equation 11: 
+    https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
+
+    Parameters
+    ----------
+    data: 4D timeseries
+
+    Returns
+    -------
+    chi_squared_stats: 1D array
+        One-dimensional array with n-1 elements, where n is the number of
+        volumes in data.
+    dof: degrees of freedom
+    """
+    # calculate dvars^2 values
+    dvars_squared_values = dvars_squared(data)
+    
+    # calculate mean for the null distribution
+    null_mean = null_distribution_mean(data)
+    #null_mean = np.median(dvars_squared_values)
+
+    # calculate the variance for the null distribution
+    null_variance = null_distribution_variance(data)
+
+    # calculate chi squared stats
+    return 2*null_mean*(dvars_squared_values)/(null_variance), 2*null_mean**2/(null_variance)
+
+def dvars_squared(data):
+    """ Calculate dvars^2 from 4D data
+
+    The dvars calculation between two volumes is defined as the square root of
+    (the mean of the (voxel differences squared)).
+
+    Parameters
+    ----------
+    data : 4D volumes
+
+    Returns
+    -------
+    dvals^2 : 1D array
+        One-dimensional array with n-1 elements, where n is the number of
+        volumes in data.
+    """
+
+    return np.mean((voxel_differences(data))**2, axis = (0,1,2))
+
+def voxel_differences(data):
+    """ Calculate difference between voxel i at time t 
+    and the same voxel at time t + 1 
+    
+    Maths:
+
+    Y_i(t+1)-Y_i(t)
+
+    Parameters
+    ----------
+    data: 4D timeseries of shape (X,Y,Z,T)
+
+    Returns
+    -------
+    dvals : 4D array with one less volume than 'data' of shape (X,Y,Z,T-1)
+    """
+    # create two timeseries with n-1 volumes and find the difference between them
+    # remove the last volume
+    img_start = data[...,:-1]
+    # remove the first volume
+    img_end = data[..., 1:]
+    return img_start - img_end
 
 def null_distribution_mean(data):
     """ Calculate mean of null distribution on 4D data
@@ -40,34 +197,11 @@ def null_distribution_mean(data):
     mu_0 : float
         estimate of the mean for the null distribution of the timeseries
     """
-    # calculate the variance of all voxel timeseries
-    voxel_variances = voxel_iqr_variance(data)
+    # calculate the IQR of all voxel timeseries
+    voxel_iqrs = voxel_iqr_variance(data)
 
     # the median of the iqr 
-    return np.median(voxel_variances)
-
-def voxel_differences(data):
-    """ Calculate difference between voxel i at time t 
-    and the same voxel at time t + 1 
-    
-    Maths:
-
-    V_i(t+1)-V_i(t)
-
-    Parameters
-    ----------
-    data: normalised 4D timeseries of shape (X,Y,Z,T)
-
-    Returns
-    -------
-    dvals : 4D array with one less volume than 'data' of shape (X,Y,Z,T-1)
-    """
-    # create two timeseries with n-1 volumes and find the difference between them
-    # remove the last volume
-    img_start = data[...,:-1]
-    # remove the first volume
-    img_end = data[..., 1:]
-    return img_start - img_end
+    return np.median(voxel_iqrs)
 
 def voxel_iqr_variance(data):
     """ Calculate IQR of voxel timeseries differences
@@ -86,7 +220,8 @@ def voxel_iqr_variance(data):
     """
     # from the data calculate the differences between voxels at t and t+1
     all_voxel_differences = voxel_differences(data)
-    
+    # all_voxel_differences = np.sqrt(dvars_squared(data))
+
     # initiate variable for loop
     iqr_dvars_values = np.zeros(data.shape[:-1])
 
@@ -103,79 +238,6 @@ def voxel_iqr_variance(data):
     iqr_0 = ndtri(0.75) - ndtri(0.25)
 
     return iqr_dvars_values/iqr_0
-
-def volume_normalisation(raw_data): 
-    """ Calculate normalised volume intensity values from raw
-    4D timeseries
-    
-    Maths:
-    
-    M_Ri = raw mean value for voxel i
-    Y_Rit = raw value for voxel i in volume t
-    m_R = mean (or median) raw value of {M_Ri}
-
-    Normalised value for voxel i at time t
-    Y_it = 100*(Y_Rit-M_Ri)/m_R 
-
-    see equation 1: 
-    https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
-
-    Parameters
-    ----------
-    raw_data: raw 4D timeseries 
-
-    Returns
-    -------
-    data : normalised 4D timeseries
-    """
-
-    # overall mean value (note this could be changed to the median)
-    m_R = np.mean(raw_data)
-
-    normalised_data = np.zeros(raw_data.shape)
-    
-    # initiate loop over x,y,z 
-    for x_value in range(raw_data.shape[0]):
-        for y_value in range(raw_data.shape[1]):
-            for z_value in range(raw_data.shape[2]):
-                    
-                    # calculate mean for voxel timeseries
-                    M_Ri = np.mean(raw_data[x_value,y_value,z_value,:])
-                    
-                    # loop over volumes
-                    for t_value in range(raw_data.shape[3]):
-
-                        # get individual raw intensities
-                        Y_Rit = raw_data[x_value,y_value,z_value,t_value]
-                        # calculate normalised intensity
-                        Y_it = 100*(Y_Rit-M_Ri)/m_R 
-                        normalised_data[x_value,y_value,z_value,t_value] = Y_it
-    
-    return normalised_data
-
-def dvars_squared(data):
-    """ Calculate dvars^2 from 4D data
-
-    The dvars calculation between two volumes is defined as the square root of
-    (the mean of the (voxel differences squared)).
-
-    Parameters
-    ----------
-    data : 4D volumes
-
-    Returns
-    -------
-    dvals^2 : 1D array
-        One-dimensional array with n-1 elements, where n is the number of
-        volumes in data.
-    """
-    # create two timeseries with n-1 volumes and find the difference between them
-    # remove the last volume
-    img_start = data[...,:-1]
-    # remove the first volume
-    img_end = data[..., 1:]
-
-    return np.mean((img_start - img_end)**2, axis = (0,1,2))
 
 def null_distribution_variance(data):
     """ Calculate estimate of variance for null distribution on 4D data
@@ -216,55 +278,3 @@ def null_distribution_variance(data):
     # define hIQR_0 and calculate null distribution variance
     hIQR_0 = (ndtri(0.75) - ndtri(0.25))/2
     return hIQR/hIQR_0
-
-def dvars_z_scores(data):
-    """ Calculate z_scores for dvars values testing if dvars values
-    belong to the null distribution
-
-    Maths:
-
-    Z(dvars_t) = (dvars^2_t - mu_0)/sqrt(variance_0)
-
-    For more information see equation 15: 
-    https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
-
-    Parameters
-    ----------
-    data: 4D timeseries
-
-    Returns
-    -------
-    z_scores: 1D array
-        One-dimensional array with n-1 elements, where n is the number of
-        volumes in data.
-    """
-
-    dvars_squared_values = dvars_squared(data)
-    null_mean = null_distribution_mean(data)
-    null_variance_uncorrected = null_distribution_variance(data)
-    null_variance_corrected = null_variance_correction(null_mean,null_variance_uncorrected)
-
-    return (dvars_squared_values-null_mean)/np.sqrt(null_variance_corrected)
-
-def null_variance_correction(null_mean,null_variance, d=3):
-    """ Correcting from possible positive skew of estimated null distribution using 
-    power transformation (cube root transformation)
-
-    Maths:
-
-    Variance(dvars_t) = (1/d)*variance_0*mu_0^(2/d-2)
-
-    For more information see Appendix F.2: 
-    https://www.sciencedirect.com/science/article/pii/S1053811917311229?via%3Dihub#appsecE
-
-    Parameters
-    ----------
-    null_mean: estimated mean of the null distribution
-    null_variance: uncorrected estimate for the null variance
-    d: transformation factor (optimal at 3)
-
-    Returns
-    -------
-    corrected_variance: float
-    """
-    return (1/d)*null_variance*null_mean**(2/d-2)
